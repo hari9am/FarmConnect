@@ -62,7 +62,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+    const [user] = await db.insert(users).values([insertUser]).returning();
     return user;
   }
 
@@ -85,7 +85,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFarmer(insertFarmer: InsertFarmer): Promise<Farmer> {
-    const [farmer] = await db.insert(farmers).values(insertFarmer).returning();
+    const [farmer] = await db.insert(farmers).values([insertFarmer]).returning();
     return farmer;
   }
 
@@ -103,7 +103,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
-    const [customer] = await db.insert(customers).values(insertCustomer).returning();
+    const [customer] = await db.insert(customers).values([insertCustomer]).returning();
     return customer;
   }
 
@@ -126,7 +126,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCrop(insertCrop: InsertCrop): Promise<Crop> {
-    const [crop] = await db.insert(crops).values(insertCrop).returning();
+    const [crop] = await db.insert(crops).values([insertCrop]).returning();
     return crop;
   }
 
@@ -184,7 +184,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMessage(insertMessage: InsertMessage): Promise<Message> {
-    const [message] = await db.insert(messages).values(insertMessage).returning();
+    const [message] = await db.insert(messages).values([insertMessage]).returning();
     return message;
   }
 
@@ -213,7 +213,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createOrder(insertOrder: InsertOrder): Promise<Order> {
-    const [order] = await db.insert(orders).values(insertOrder).returning();
+    const [order] = await db.insert(orders).values([insertOrder]).returning();
     return order;
   }
 
@@ -251,7 +251,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createReview(insertReview: InsertReview): Promise<Review> {
-    const [review] = await db.insert(reviews).values(insertReview).returning();
+    const [review] = await db.insert(reviews).values([insertReview]).returning();
     
     // Update farmer's rating
     const avgRating = await db.select({ avg: sql<number>`AVG(rating)::numeric` })
