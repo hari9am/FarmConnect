@@ -62,7 +62,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values([insertUser]).returning();
+    const [user] = await db.insert(users).values([insertUser as any]).returning();
     return user;
   }
 
@@ -126,7 +126,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCrop(insertCrop: InsertCrop): Promise<Crop> {
-    const [crop] = await db.insert(crops).values([insertCrop]).returning();
+    const [crop] = await db.insert(crops).values([insertCrop as any]).returning();
     return crop;
   }
 
