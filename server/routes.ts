@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import Stripe from "stripe";
@@ -8,17 +8,21 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+  console.warn('STRIPE_SECRET_KEY not set - payment functionality will be disabled');
 }
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
-});
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2025-08-27.basil",
+}) : null;
 
 const JWT_SECRET = process.env.SESSION_SECRET || "your-secret-key";
 
-interface AuthenticatedRequest extends Request {
-  user?: any;
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
 }
 
 const authenticateToken = async (req: any, res: any, next: any) => {
@@ -278,6 +282,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Payment routes
   app.post("/api/create-payment-intent", authenticateToken, async (req, res) => {
     try {
+      if (!stripe) {
+        return res.status(500).json({ message: "Payment functionality is not available - Stripe not configured" });
+      }
+      
       const { amount, cropId, quantity } = req.body;
       
       const paymentIntent = await stripe.paymentIntents.create({

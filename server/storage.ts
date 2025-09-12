@@ -4,7 +4,7 @@ import type {
   InsertUser, InsertFarmer, InsertCustomer, InsertCrop, InsertMessage, InsertOrder, InsertReview
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { eq, and, desc, asc, sql, or } from "drizzle-orm";
 
 export interface IStorage {
   // User management
@@ -224,11 +224,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOrdersByFarmer(farmerId: string): Promise<Order[]> {
-    return db.select()
+    const result = await db.select({
+      id: orders.id,
+      customerId: orders.customerId,
+      cropId: orders.cropId,
+      quantity: orders.quantity,
+      totalPrice: orders.totalPrice,
+      status: orders.status,
+      paymentIntentId: orders.paymentIntentId,
+      createdAt: orders.createdAt,
+    })
       .from(orders)
       .innerJoin(crops, eq(orders.cropId, crops.id))
       .where(eq(crops.farmerId, farmerId))
       .orderBy(desc(orders.createdAt));
+    
+    return result;
   }
 
   async updateOrderStatus(id: string, status: string): Promise<Order> {
