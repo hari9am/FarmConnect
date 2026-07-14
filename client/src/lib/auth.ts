@@ -37,5 +37,8 @@ export function logout() {
 
 export function getUserRole(): "farmer" | "customer" | null {
   const user = getCurrentUser();
-  return user?.role || null;
+  console.log("getUserRole - current user:", user);
+  const role = user?.role || null;
+  console.log("getUserRole - returning role:", role);
+  return role;
 }

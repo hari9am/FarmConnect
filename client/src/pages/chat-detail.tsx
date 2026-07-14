@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Phone, Camera, Send } from "lucide-react";
+import { ArrowLeft, Phone, Camera, Send, MessageCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { getAuthHeaders } from "@/lib/auth";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ChatDetailParams {
   userId: string;
@@ -81,117 +82,128 @@ export default function ChatDetail() {
     navigate("/messages");
   };
 
+  const { t } = useLanguage();
+
   if (isLoading) {
     return (
-      <div className="mobile-container">
-        <div className="flex flex-col min-h-screen">
-          <header className="p-4 border-b border-border bg-card">
-            <div className="flex items-center space-x-3">
-              <Button variant="ghost" size="icon" onClick={goBack}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center space-x-3 flex-1">
-                <div className="w-10 h-10 bg-muted rounded-full animate-pulse"></div>
-                <div>
-                  <div className="h-4 w-24 bg-muted rounded animate-pulse"></div>
-                  <div className="h-3 w-16 bg-muted rounded animate-pulse mt-1"></div>
-                </div>
-              </div>
+      <div className="min-h-screen bg-background text-foreground relative flex flex-col font-sans">
+        <header className="glass-ultra p-4 fixed top-0 left-0 w-full z-50 h-20 flex items-center border-b border-border">
+          <div className="flex items-center space-x-4 max-w-2xl mx-auto w-full animate-pulse">
+            <div className="w-10 h-10 bg-primary/10 rounded-full"></div>
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-primary/10 rounded w-1/3"></div>
+              <div className="h-3 bg-primary/10 rounded w-1/4"></div>
             </div>
-          </header>
-          <div className="flex-1 p-4">
-            <div className="text-center text-muted-foreground">Loading conversation...</div>
           </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs animate-pulse">{t("loading_conversation")}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mobile-container">
-      <div className="flex flex-col min-h-screen">
-        <header className="p-4 border-b border-border bg-card">
-          <div className="flex items-center space-x-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={goBack}
-              data-testid="back-button"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center space-x-3 flex-1">
-              <img 
-                src="https://images.unsplash.com/photo-1605000797499-95a51c5269ae?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100" 
-                alt="Chat participant" 
-                className="w-10 h-10 rounded-full object-cover"
-                data-testid="chat-avatar"
-              />
-              <div>
-                <h3 className="font-medium" data-testid="chat-name">
-                  User {otherUserId.slice(0, 8)}...
-                </h3>
-                <p className="text-xs text-green-500" data-testid="online-status">Online</p>
+    <div className="min-h-screen bg-background text-foreground relative flex flex-col font-sans overflow-hidden">
+      {/* Background Flow */}
+      <div className="farm-bg">
+        <div className="farm-leaf" style={{ top: '-10%', left: '-10%' }} />
+        <div className="farm-leaf" style={{ bottom: '-10%', right: '-10%', background: 'var(--accent)', animationDelay: '2s' }} />
+      </div>
+
+      <div className="relative z-10 flex flex-col h-screen">
+        {/* Header */}
+        <header className="glass-ultra p-4 h-20 flex items-center border-b border-border shrink-0">
+          <div className="flex items-center justify-between w-full max-w-2xl mx-auto">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={goBack}
+                className="hover:bg-primary/10 transition-all rounded-full h-10 w-10 text-foreground"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/20">
+                    <MessageCircle className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background"></div>
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground leading-none mb-1">
+                    User {otherUserId.slice(0, 8)}
+                  </h3>
+                  <p className="text-[10px] font-black uppercase text-green-600 tracking-tighter">{t("online")}</p>
+                </div>
               </div>
             </div>
-            <Button variant="ghost" size="icon" data-testid="call-button">
+            <Button variant="ghost" size="icon" className="hover:bg-primary/10 rounded-full h-10 w-10 text-primary">
               <Phone className="h-5 w-5" />
             </Button>
           </div>
         </header>
 
-        <div className="flex-1 p-4 space-y-4 overflow-y-auto" data-testid="messages-container">
-          {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-muted-foreground text-center" data-testid="no-messages">
-                No messages yet. Start the conversation!
-              </p>
-            </div>
-          ) : (
-            messages.map((msg: any) => {
-              const isOwn = msg.senderId === currentUser.id;
-              return (
-                <div
-                  key={msg.id}
-                  className={`chat-bubble p-3 rounded-lg ${
-                    isOwn ? "sent" : "received"
-                  }`}
-                  data-testid={`message-${msg.id}`}
-                >
-                  <p className="text-sm">{msg.content}</p>
-                  <span className={`text-xs mt-1 block ${
-                    isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
-                  }`}>
-                    {new Date(msg.createdAt).toLocaleTimeString([], { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    })}
-                  </span>
-                </div>
-              );
-            })
-          )}
-          <div ref={messagesEndRef} />
+        {/* Chat Stream */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth scrollbar-hide">
+          <div className="max-w-2xl mx-auto w-full space-y-4">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
+                <MessageCircle className="w-12 h-12 mb-4 text-primary" />
+                <p className="text-sm font-bold uppercase tracking-widest leading-relaxed text-foreground">
+                  {t("start_conversation_desc")}
+                </p>
+              </div>
+            ) : (
+              messages.map((msg: any) => {
+                const isOwn = msg.senderId === currentUser.id;
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex ${isOwn ? "justify-end" : "justify-start"} animate-fade-up`}
+                  >
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm relative transition-all hover:shadow-md ${
+                      isOwn 
+                      ? "bg-primary text-primary-foreground rounded-tr-none" 
+                      : "bg-white dark:bg-card text-foreground rounded-tl-none border border-border"
+                    }`}>
+                      <p className="text-sm leading-relaxed">{msg.content}</p>
+                      <span className={`text-[9px] font-bold uppercase mt-2 block opacity-70 ${isOwn ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                        {new Date(msg.createdAt).toLocaleTimeString([], { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
-        <div className="p-4 border-t border-border bg-card">
-          <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="icon" data-testid="camera-button">
-              <Camera className="h-5 w-5" />
+        {/* Input Terminal */}
+        <div className="p-4 border-t border-border glass-ultra shrink-0">
+          <div className="max-w-2xl mx-auto flex items-center space-x-3">
+            <Button variant="ghost" size="icon" className="shrink-0 hover:bg-primary/10 rounded-full h-12 w-12 text-muted-foreground">
+              <Camera className="h-6 w-6" />
             </Button>
-            <Input
-              placeholder="Type a message..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="flex-1"
-              data-testid="message-input"
-            />
+            <div className="flex-1 relative">
+              <Input
+                placeholder={t("type_message")}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="w-full bg-background border-border text-foreground rounded-2xl h-12 px-5 focus:ring-primary focus:border-primary transition-all placeholder:text-muted-foreground"
+              />
+            </div>
             <Button
               size="icon"
               onClick={handleSendMessage}
               disabled={!message.trim() || sendMessageMutation.isPending}
-              data-testid="send-button"
+              className="shrink-0 h-12 w-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-30 shadow-lg shadow-primary/10"
             >
               <Send className="h-5 w-5" />
             </Button>

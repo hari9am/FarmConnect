@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmConnect Auth Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .error { color: red; }
+        .success { color: green; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>FarmConnect Authentication Debug</h1>
+    
+    <div class="section">
+        <h2>Current localStorage Status</h2>
+        <button onclick="checkStorage()">Check Storage</button>
+        <pre id="storage-output">Click "Check Storage" to see current values</pre>
+    </div>
+    
+    <div class="section">
+        <h2>Role Detection Test</h2>
+        <button onclick="testRoleDetection()">Test Role Detection</button>
+        <pre id="role-output">Click "Test Role Detection" to see role logic</pre>
+    </div>
+    
+    <div class="section">
+        <h2>Manual Actions</h2>
+        <button onclick="clearStorage()">Clear All Storage</button>
+        <button onclick="setCustomer()">Set as Customer</button>
+        <button onclick="setFarmer()">Set as Farmer</button>
+        <pre id="action-output">Manual actions will appear here</pre>
+    </div>
+
+    <script>
+        function checkStorage() {
+            const token = localStorage.getItem('farmconnect-token');
+            const userStr = localStorage.getItem('farmconnect-user');
+            
+            let output = '';
+            
+            if (token) {
+                output += `✅ Token exists: ${token.substring(0, 20)}...\n\n`;
+            } else {
+                output += `❌ No token found\n\n`;
+            }
+            
+            if (userStr) {
+                try {
+                    const user = JSON.parse(userStr);
+                    output += `✅ User data found:\n${JSON.stringify(user, null, 2)}\n\n`;
+                    output += `📋 Extracted role: "${user.role}"\n`;
+                    output += `📋 Role type: ${typeof user.role}\n`;
+                } catch (e) {
+                    output += `❌ Invalid user JSON: ${userStr}\n`;
+                }
+            } else {
+                output += `❌ No user data found\n`;
+            }
+            
+            document.getElementById('storage-output').textContent = output;
+        }
+        
+        function testRoleDetection() {
+            // Simulate the getUserRole function
+            const userStr = localStorage.getItem('farmconnect-user');
+            let output = 'Role Detection Logic:\n\n';
+            
+            if (!userStr) {
+                output += '❌ No user string in localStorage\n';
+                output += '→ getUserRole() would return: null\n';
+            } else {
+                try {
+                    const user = JSON.parse(userStr);
+                    output += `✅ Parsed user: ${JSON.stringify(user, null, 2)}\n\n`;
+                    output += `user?.role = ${user.role} (type: ${typeof user.role})\n\n`;
+                    
+                    const role = user?.role || null;
+                    output += `Final role result: "${role}"\n`;
+                    output += `→ getUserRole() would return: ${role}\n`;
+                    
+                    if (role === 'farmer') {
+                        output += '\n🧭 Navigation would go to: /farmer/dashboard';
+                    } else if (role === 'customer') {
+                        output += '\n🧭 Navigation would go to: /customer/dashboard';
+                    } else {
+                        output += '\n❌ Unknown role - would go to role selection';
+                    }
+                } catch (e) {
+                    output += `❌ JSON parse error: ${e.message}\n`;
+                    output += '→ getUserRole() would return: null\n';
+                }
+            }
+            
+            document.getElementById('role-output').textContent = output;
+        }
+        
+        function clearStorage() {
+            localStorage.removeItem('farmconnect-token');
+            localStorage.removeItem('farmconnect-user');
+            document.getElementById('action-output').textContent = '✅ Storage cleared';
+            checkStorage();
+        }
+        
+        function setCustomer() {
+            const customerUser = {
+                id: 'test-customer-id',
+                username: 'Test Customer',
+                phone: '1234567890',
+                role: 'customer',
+                language: 'en',
+                phoneVerified: true
+            };
+            
+            localStorage.setItem('farmconnect-token', 'test-customer-token');
+            localStorage.setItem('farmconnect-user', JSON.stringify(customerUser));
+            
+            document.getElementById('action-output').textContent = '✅ Set as Customer\n\n' + JSON.stringify(customerUser, null, 2);
+            checkStorage();
+        }
+        
+        function setFarmer() {
+            const farmerUser = {
+                id: 'test-farmer-id',
+                username: 'Test Farmer',
+                phone: '1234567890',
+                role: 'farmer',
+                language: 'en',
+                phoneVerified: true
+            };
+            
+            localStorage.setItem('farmconnect-token', 'test-farmer-token');
+            localStorage.setItem('farmconnect-user', JSON.stringify(farmerUser));
+            
+            document.getElementById('action-output').textContent = '✅ Set as Farmer\n\n' + JSON.stringify(farmerUser, null, 2);
+            checkStorage();
+        }
+        
+        // Auto-check on load
+        window.onload = function() {
+            checkStorage();
+            testRoleDetection();
+        };
+    </script>
+</body>
+</html>

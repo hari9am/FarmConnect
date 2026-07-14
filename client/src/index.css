@@ -1,143 +1,317 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: hsl(0 0% 100%);
-  --foreground: hsl(222.2 84% 4.9%);
+  --background: hsl(80 40% 98%);
+  --foreground: hsl(140 40% 10%);
   --card: hsl(0 0% 100%);
-  --card-foreground: hsl(222.2 84% 4.9%);
+  --card-foreground: hsl(140 40% 10%);
   --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(222.2 84% 4.9%);
-  --primary: hsl(142.1 76.2% 36.3%);
-  --primary-foreground: hsl(355.7 100% 97.3%);
-  --secondary: hsl(210 40% 96%);
-  --secondary-foreground: hsl(222.2 84% 4.9%);
-  --muted: hsl(210 40% 96%);
-  --muted-foreground: hsl(215.4 16.3% 46.9%);
-  --accent: hsl(24.6 95% 53.1%);
-  --accent-foreground: hsl(0 0% 100%);
-  --destructive: hsl(0 84.2% 60.2%);
-  --destructive-foreground: hsl(210 40% 98%);
-  --border: hsl(214.3 31.8% 91.4%);
-  --input: hsl(214.3 31.8% 91.4%);
-  --ring: hsl(142.1 76.2% 36.3%);
-  --radius: 0.75rem;
-  --font-sans: Inter, system-ui, sans-serif;
-  --font-serif: Georgia, serif;
-  --font-mono: Menlo, monospace;
+  --popover-foreground: hsl(140 40% 10%);
+  
+  /* Organic Farm Palette - Revitalized */
+  --primary: hsl(142 55% 28%); /* Lusher Forest Green */
+  --primary-foreground: hsl(80 40% 98%);
+  --secondary: hsl(45 90% 95%); /* Soft Sunlight / Warm Cream */
+  --secondary-foreground: hsl(142 55% 15%);
+  --muted: hsl(80 20% 94%);
+  --muted-foreground: hsl(142 10% 35%);
+  --accent: hsl(28 85% 55%); /* Vibrant Carrot Orange */
+  --accent-foreground: hsl(80 40% 98%);
+  --destructive: hsl(0 84% 45%);
+  --destructive-foreground: hsl(0 0% 98%);
+  --border: hsl(80 30% 90%);
+  --input: hsl(80 30% 90%);
+  --ring: hsl(142 55% 28%);
+  
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-shadow: 0 8px 32px 0 rgba(76, 175, 80, 0.1);
+
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-display: 'Outfit', system-ui, sans-serif;
+  --radius: 1.5rem;
 }
 
 .dark {
-  --background: hsl(222.2 84% 4.9%);
-  --foreground: hsl(210 40% 98%);
-  --card: hsl(222.2 84% 4.9%);
-  --card-foreground: hsl(210 40% 98%);
-  --popover: hsl(222.2 84% 4.9%);
-  --popover-foreground: hsl(210 40% 98%);
-  --primary: hsl(142.1 70.6% 45.3%);
-  --primary-foreground: hsl(144.9 80.4% 10%);
-  --secondary: hsl(217.2 32.6% 17.5%);
-  --secondary-foreground: hsl(210 40% 98%);
-  --muted: hsl(217.2 32.6% 17.5%);
-  --muted-foreground: hsl(215 20.2% 65.1%);
-  --accent: hsl(24.6 95% 53.1%);
-  --accent-foreground: hsl(0 0% 100%);
-  --destructive: hsl(0 62.8% 30.6%);
-  --destructive-foreground: hsl(210 40% 98%);
-  --border: hsl(217.2 32.6% 17.5%);
-  --input: hsl(217.2 32.6% 17.5%);
-  --ring: hsl(142.1 70.6% 45.3%);
+  --background: hsl(145 45% 4%);
+  --foreground: hsl(80 40% 96%);
+  --card: hsl(145 45% 7%);
+  --card-foreground: hsl(80 40% 96%);
+  --popover: hsl(145 45% 7%);
+  --popover-foreground: hsl(80 40% 96%);
+  --primary: hsl(142 65% 50%); /* Vibrant Spring Leaf */
+  --primary-foreground: hsl(145 45% 4%);
+  --secondary: hsl(145 35% 12%);
+  --secondary-foreground: hsl(80 40% 96%);
+  --muted: hsl(145 30% 12%);
+  --muted-foreground: hsl(142 15% 70%);
+  --accent: hsl(38 90% 60%); /* Golden Amber */
+  --accent-foreground: hsl(145 45% 4%);
+  --destructive: hsl(0 75% 40%);
+  --destructive-foreground: hsl(80 40% 96%);
+  --border: hsl(145 30% 18%);
+  --input: hsl(145 30% 18%);
+  --ring: hsl(142 65% 50%);
+  
+  --glass-bg: rgba(12, 30, 20, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-
+  * { @apply border-border; }
   body {
-    @apply font-sans antialiased bg-background text-foreground;
-    font-family: var(--font-sans);
+    @apply font-sans antialiased text-foreground bg-background;
+    background: linear-gradient(180deg, hsl(110 30% 97%) 0%, hsl(142 40% 98%) 100%);
+    background-attachment: fixed;
+    overflow-x: hidden;
   }
 }
 
+.dark body {
+  background-image: 
+    radial-gradient(at 0% 0%, hsla(145,50%,8%,1) 0, transparent 45%), 
+    radial-gradient(at 100% 100%, hsla(38,50%,8%,1) 0, transparent 45%),
+    linear-gradient(to bottom, #050a06, #0a110b);
+}
+
 @layer components {
-  .voice-indicator {
-    animation: pulse 2s infinite;
+  /* Natural Clean Glass */
+  .glass-ultra {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
   }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-
-  .floating-action {
-    position: fixed;
-    bottom: 80px;
-    right: 20px;
-    z-index: 50;
-  }
-
-  .map-container {
-    height: 400px;
-    background: linear-gradient(45deg, var(--primary), hsl(142.1 76.2% 30%));
+  .glass-card {
     position: relative;
+    overflow: hidden;
+    border-radius: 2.5rem;
+    transition: all 700ms cubic-bezier(0.23, 1, 0.32, 1);
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.02);
+  }
+  
+  .glass-card:hover {
+    transform: translateY(-12px) scale(1.02);
+    box-shadow: 0 30px 60px rgba(0,0,0,0.08);
+    border-color: var(--primary);
   }
 
-  .product-pin {
-    position: absolute;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 3px solid white;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    cursor: pointer;
-    transition: transform 0.2s;
-  }
-
-  .product-pin:hover {
-    transform: scale(1.1);
-  }
-
-  .chat-bubble {
-    max-width: 80%;
-    word-wrap: break-word;
-  }
-
-  .chat-bubble.sent {
-    margin-left: auto;
-    background: var(--primary);
+  /* Organic Button with Plant Decorations */
+  .btn-organic {
+    @apply relative overflow-visible rounded-2xl font-black tracking-wide transition-all duration-500 py-4 px-8;
+    background: linear-gradient(135deg, var(--primary), hsl(142 55% 22%));
     color: var(--primary-foreground);
+    box-shadow: 0 8px 25px rgba(22, 101, 52, 0.2);
+    z-index: 1;
   }
 
-  .chat-bubble.received {
-    background: var(--muted);
-    color: var(--muted-foreground);
+  /* Creepers and Plants decorations */
+  .btn-organic::before {
+    content: "🌿";
+    position: absolute;
+    left: -12px;
+    top: -12px;
+    font-size: 20px;
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
   }
 
-  .notification-badge {
+  .btn-organic::after {
+    content: "🌱";
+    position: absolute;
+    right: -10px;
+    bottom: -10px;
+    font-size: 18px;
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+  }
+
+  .btn-organic:hover {
+    @apply brightness-110 -translate-y-2;
+    box-shadow: 0 15px 35px rgba(22, 101, 52, 0.4);
+    border-radius: 1.2rem;
+  }
+
+  .btn-organic:hover::before {
+    opacity: 1;
+    transform: rotate(-15deg) scale(1.4);
+  }
+
+  .btn-organic:hover::after {
+    opacity: 1;
+    transform: rotate(15deg) scale(1.4);
+  }
+
+  .btn-organic:active {
+    @apply translate-y-0 scale-95;
+  }
+
+  /* Alternative decoration for secondary buttons */
+  .btn-natural-outline {
+    @apply relative overflow-visible rounded-2xl font-bold transition-all duration-300 border-2 border-primary/20 bg-white/50 text-primary px-6 py-3;
+  }
+  .btn-natural-outline:hover {
+    @apply border-primary bg-primary/5 -translate-y-1;
+  }
+
+  /* Farm Specific Background */
+  .farm-bg {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    z-index: -1;
+    background: var(--background);
+    pointer-events: none;
+  }
+  
+  .farm-leaf {
+    position: absolute;
+    width: 50vw;
+    height: 50vw;
+    background: radial-gradient(circle, var(--primary) 0%, transparent 75%);
+    filter: blur(140px);
+    opacity: 0.15;
+    border-radius: 50%;
+    animation: floating 30s infinite ease-in-out;
+  }
+
+  @keyframes floating {
+    0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+    33% { transform: translate(15vw, 10vh) rotate(10deg) scale(1.1); }
+    66% { transform: translate(-10vw, 20vh) rotate(-10deg) scale(0.9); }
+  }
+
+  .text-gradient-organic {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary to-accent;
+  }
+
+  /* Enhanced Natural Decorations */
+  .plant-decoration {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .creeper-vine {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath d='M10,100 Q50,50 100,100 T190,100' stroke='%2310b981' stroke-width='3' fill='none' opacity='0.3'/%3E%3Ccircle cx='30' cy='80' r='8' fill='%2310b981' opacity='0.4'/%3E%3Ccircle cx='170' cy='120' r='6' fill='%2310b981' opacity='0.3'/%3E%3C/svg%3E") no-repeat center;
+    opacity: 0.6;
+    animation: vine-sway 8s infinite ease-in-out;
+  }
+
+  .leaf-pattern {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Cpath d='M30,10 Q20,30 30,50 Q40,30 30,10' fill='%2310b981' opacity='0.2'/%3E%3C/svg%3E") no-repeat center;
+    animation: leaf-fall 12s infinite ease-in-out;
+  }
+
+  .organic-border {
+    position: relative;
+    border: 2px solid transparent;
+    background: linear-gradient(white, white) padding-box,
+                linear-gradient(135deg, #10b981, #059669, #047857) border-box;
+  }
+
+  .organic-border::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(135deg, #10b981, #059669, #047857);
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0.3;
+    filter: blur(4px);
+  }
+
+  @keyframes vine-sway {
+    0%, 100% { transform: rotate(0deg) translateX(0); }
+    50% { transform: rotate(3deg) translateX(5px); }
+  }
+
+  @keyframes leaf-fall {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-10px) rotate(5deg); }
+    75% { transform: translateY(10px) rotate(-5deg); }
+  }
+
+  /* Natural button decorations */
+  .btn-organic::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .btn-organic:hover::before {
+    opacity: 0.2;
+  }
+
+  .btn-organic::after {
+    content: '🌿';
     position: absolute;
     top: -8px;
     right: -8px;
-    background: var(--destructive);
-    color: var(--destructive-foreground);
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     font-size: 12px;
-    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
   }
 
-  .mobile-container {
-    min-height: 100vh;
-    max-width: 428px;
-    margin: 0 auto;
-    background: var(--background);
-    position: relative;
-    overflow: hidden;
+  .btn-organic:hover::after {
+    opacity: 0.6;
+    transform: scale(1.2);
   }
+
+  /* Mobile Grid Fixes */
+  .mobile-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4;
+  }
+
+  /* Re-defining existing classes to prevent breakages */
+  .space-bg { @apply farm-bg; }
+  .space-blob { @apply farm-leaf; }
+  .space-blob-1 { top: -10%; left: -10%; }
+  .space-blob-2 { bottom: -10%; right: -10%; background: radial-gradient(circle, var(--accent) 0%, transparent 70%); opacity: 0.1; }
+  .space-blob-3 { top: 40%; left: 40%; background: radial-gradient(circle, var(--secondary) 0%, transparent 70%); opacity: 0.15; }
+  .btn-3d { @apply btn-organic; }
+  .map-container-ultra { @apply rounded-3xl overflow-hidden border-2 border-primary/20 shadow-xl; height: 500px; }
+}
+
+/* Cursor Trail Styles */
+.cursor-trail {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  font-size: 24px;
+  line-height: 1;
+  transition: transform 0.1s ease-out, opacity 0.5s ease-out;
+  user-select: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

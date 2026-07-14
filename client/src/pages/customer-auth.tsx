@@ -1,204 +1,325 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { isAuthenticated, getUserRole } from "@/lib/auth";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, User, LogIn, Leaf, ShieldCheck, Phone, Zap } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
 
-const customerSchema = z.object({
-  username: z.string().min(2, "Name must be at least 2 characters"),
+const OTP_LENGTH = 6;
+
+const phoneSchema = z.object({
   phone: z.string().min(10, "Please enter a valid phone number"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  termsAccepted: z.boolean().refine(val => val, "You must accept the terms and conditions"),
 });
 
-type CustomerFormData = z.infer<typeof customerSchema>;
+const registerSchema = z.object({
+  username: z.string().min(2, "Name must be at least 2 characters"),
+  phone: z.string().min(10, "Please enter a valid phone number"),
+});
+
+type PhoneData = z.infer<typeof phoneSchema>;
+type RegisterData = z.infer<typeof registerSchema>;
 
 export default function CustomerAuth() {
   const [, navigate] = useLocation();
-  const [isLogin, setIsLogin] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
+  const [otpRequested, setOtpRequested] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [resendTimer, setResendTimer] = useState(0);
   const { toast } = useToast();
+  const { t } = useLanguage();
 
-  const form = useForm<CustomerFormData>({
-    resolver: zodResolver(customerSchema),
-    defaultValues: {
-      termsAccepted: false,
+  useEffect(() => {
+    if (isAuthenticated() && getUserRole() === "customer") {
+      navigate("/customer/dashboard");
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [resendTimer]);
+
+  const phoneForm = useForm<PhoneData>({
+    resolver: zodResolver(phoneSchema),
+  });
+
+  const registerForm = useForm<RegisterData>({
+    resolver: zodResolver(registerSchema),
+  });
+
+  const sendOtpMutation = useMutation({
+    mutationFn: async (data: { phone: string; isLogin?: boolean }) => {
+      const res = await apiRequest("POST", "/api/auth/send-otp", { 
+        phone: data.phone, 
+        role: "customer",
+        isLogin: data.isLogin 
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setOtpRequested(true);
+      setIsNewUser(data.isNewUser);
+      setResendTimer(60);
+      toast({ title: t("otp_sent") || "OTP sent", description: t("otp_sent_desc") || "We sent a 6-digit OTP to your phone." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to send OTP", description: error.message || "Please try again.", variant: "destructive" });
     },
   });
 
-  const registerMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
-      const response = await apiRequest("POST", endpoint, data);
-      return response.json();
+  const verifyOtpMutation = useMutation({
+    mutationFn: async ({ phone, otp, userData }: { phone: string; otp: string; userData?: any }) => {
+      const res = await apiRequest("POST", "/api/auth/verify-otp", { phone, otp, userData });
+      return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       localStorage.setItem("farmconnect-token", data.token);
       localStorage.setItem("farmconnect-user", JSON.stringify(data.user));
-      toast({
-        title: isLogin ? "Welcome back!" : "Registration Successful!",
-        description: isLogin ? "You have successfully logged in." : "Welcome to FarmConnect. Your customer account has been created.",
-      });
+      toast({ title: "Success!", description: isNewUser ? "Registration successful!" : "Welcome back to FarmConnect." });
       navigate("/customer/dashboard");
     },
     onError: (error: any) => {
-      toast({
-        title: isLogin ? "Login Failed" : "Registration Failed",
-        description: error.message || "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Invalid OTP", description: error.message || "Please try again.", variant: "destructive" });
     },
   });
 
-  const handleSubmit = (data: CustomerFormData) => {
-    const submitData = isLogin 
-      ? { phone: data.phone, password: data.password }
-      : { ...data, role: "customer" };
-    
-    registerMutation.mutate(submitData);
+  const handleSendOtp = () => {
+    const phone = phoneForm.getValues("phone");
+    if (!phone) {
+      toast({ title: "Phone required", description: "Please enter your phone number", variant: "destructive" });
+      return;
+    }
+    sendOtpMutation.mutate({ phone, isLogin: true });
+  };
+
+  const handleVerifyOtp = () => {
+    const phone = phoneForm.getValues("phone");
+    if (!phone || otpCode.length !== OTP_LENGTH) return;
+    if (isNewUser) {
+      setIsLogin(false);
+      registerForm.setValue("phone", phone);
+    } else {
+      const userData = { username: "User", phone, role: "customer", language: "en" };
+      verifyOtpMutation.mutate({ phone, otp: otpCode, userData });
+    }
+  };
+
+  const handleRegisterSubmit = (data: RegisterData) => {
+    const userData = { username: data.username, phone: data.phone, role: "customer", language: "en" };
+    verifyOtpMutation.mutate({ phone: data.phone, otp: otpCode, userData });
+  };
+
+  const switchMode = () => {
+    setIsLogin(!isLogin);
+    phoneForm.reset();
+    registerForm.reset();
+    setOtpRequested(false);
+    setOtpCode("");
+    setResendTimer(0);
+    setIsNewUser(false);
   };
 
   return (
-    <div className="mobile-container">
-      <div className="flex flex-col min-h-screen">
-        <header className="p-4 border-b border-border">
-          <div className="flex items-center space-x-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/role")}
-              data-testid="back-button"
-            >
-              <ArrowLeft className="h-5 w-5" />
+    <div className="min-h-screen relative overflow-hidden flex flex-col font-sans text-foreground pb-12">
+      {/* Organic Farm Background */}
+      <div className="farm-bg">
+        <div className="farm-leaf top-[-10%] left-[-10%]" />
+        <div className="farm-leaf bottom-[-10%] right-[-10%] bg-accent opacity-5" />
+      </div>
+
+      <div className="relative z-10 flex flex-col min-h-screen">
+        <header className="px-4 py-6 md:px-8 glass-ultra border-b border-white/20 sticky top-0 shadow-lg">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-primary/20 backdrop-blur rounded-2xl flex items-center justify-center border border-primary/20">
+                <Leaf className="w-6 h-6 text-primary" />
+              </div>
+              <h1 className="text-xl font-black text-primary tracking-tighter" style={{ fontFamily: 'var(--font-display)' }}>FarmConnect.</h1>
+            </div>
+            <Button variant="ghost" onClick={() => navigate("/role")} className="text-foreground hover:bg-primary/10 rounded-xl font-bold">
+              <ArrowLeft className="h-5 w-5 mr-1" /> {t("back") || 'Back'}
             </Button>
-            <h1 className="text-lg font-semibold" data-testid="page-title">
-              {isLogin ? "Customer Login" : "Customer Registration"}
-            </h1>
           </div>
         </header>
 
-        <div className="flex-1 p-6">
-          <div className="mb-6 text-center">
-            <img 
-              src="https://images.unsplash.com/photo-1488459716781-31db52582fe9?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300" 
-              alt="Fresh produce at local farmers market" 
-              className="w-24 h-24 mx-auto rounded-full mb-4 object-cover border-2 border-accent/20"
-            />
-            <h2 className="text-xl font-semibold mb-2" data-testid="form-title">
-              {isLogin ? "Welcome Back" : "Join FarmConnect"}
-            </h2>
-            <p className="text-muted-foreground" data-testid="form-description">
-              {isLogin ? "Sign in to your account" : "Get fresh produce directly from farmers"}
-            </p>
-          </div>
+        <main className="flex-1 px-4 flex flex-col items-center justify-center py-8">
+          <div className="w-full max-w-[440px] animate-fade-up">
+            <div className="text-center mb-8">
+               <div className="inline-flex items-center px-4 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary text-[10px] font-black uppercase tracking-widest mb-4">
+                 <ShieldCheck className="w-3.5 h-3.5 mr-2" /> {t("secure_channel") || 'Secure Connection'}
+               </div>
+               <h2 className="text-4xl md:text-5xl font-black text-foreground tracking-tighter mb-2" style={{ fontFamily: 'var(--font-display)' }}>
+                 {isLogin ? (t("gateway_login") || 'Login') : (t("gateway_setup") || 'Register')}
+               </h2>
+               <p className="text-muted-foreground font-medium text-sm">
+                 {isLogin ? (t("sign_into_consumer_protocol") || 'Access the fresh marketplace.') : (t("join_collective_buy_direct") || 'Join our soil-to-soul movement.')}
+               </p>
+            </div>
 
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="username">Full Name</Label>
-                <Input
-                  id="username"
-                  placeholder="Enter your full name"
-                  {...form.register("username")}
-                  data-testid="input-username"
-                />
-                {form.formState.errors.username && (
-                  <p className="text-sm text-destructive">{form.formState.errors.username.message}</p>
+            <div className="glass-card p-1 border border-white/20 shadow-2xl overflow-hidden rounded-[2.5rem]">
+              <div className="bg-white/70 h-full p-8 md:p-10 rounded-[2.3rem] shadow-inner">
+                {isLogin ? (
+                  <div className="space-y-6">
+                    <div className="space-y-3">
+                      <Label className="text-muted-foreground font-black text-[10px] uppercase tracking-widest ml-1">{t("phone_number") || 'Phone Number'}</Label>
+                      <div className="flex gap-3">
+                        <div className="w-20 rounded-2xl bg-white/60 border border-primary/10 flex items-center justify-center font-bold text-primary shadow-sm h-14">+91</div>
+                        <Input
+                          placeholder={t("enter_phone_number") || '9876543210'}
+                          className="h-14 rounded-2xl bg-white/80 border-primary/10 text-lg font-bold placeholder:text-muted-foreground/40 focus:ring-primary shadow-sm"
+                          type="tel"
+                          {...phoneForm.register("phone")}
+                        />
+                      </div>
+                      {phoneForm.formState.errors.phone && <p className="text-xs text-destructive font-bold ml-1">{phoneForm.formState.errors.phone.message}</p>}
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label className="text-muted-foreground font-black text-[10px] uppercase tracking-widest ml-1">{t("otp_code") || 'OTP Verification'}</Label>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={OTP_LENGTH}
+                        placeholder="••••••"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH))}
+                        disabled={!otpRequested || verifyOtpMutation.isPending}
+                        className="h-16 text-3xl tracking-[0.4em] text-center font-black rounded-2xl bg-white/80 border-primary/10 text-primary placeholder:text-muted-foreground/20 focus:ring-primary shadow-sm"
+                      />
+
+                      {!otpRequested ? (
+                        <Button 
+                          className="w-full btn-organic py-8 text-lg rounded-2xl shadow-xl shadow-primary/20 mt-4" 
+                          onClick={handleSendOtp} 
+                          disabled={sendOtpMutation.isPending}
+                        >
+                          {sendOtpMutation.isPending ? (t("connecting_btn") || 'Connecting...') : (t("transmit_otp") || 'Send OTP')}
+                          <Zap className="ml-2 w-5 h-5 fill-current" />
+                        </Button>
+                      ) : (
+                        <Button 
+                          className="w-full btn-organic py-8 text-lg rounded-2xl shadow-xl shadow-primary/20 mt-4" 
+                          onClick={handleVerifyOtp} 
+                          disabled={verifyOtpMutation.isPending || otpCode.length !== OTP_LENGTH}
+                        >
+                          {verifyOtpMutation.isPending ? (t("decrypting_btn") || 'Verifying...') : (t("initialize_session") || 'Login')}
+                        </Button>
+                      )}
+
+                      {otpRequested && (
+                        <div className="text-center mt-4">
+                          {resendTimer > 0 ? (
+                            <span className="text-xs text-muted-foreground font-bold">{t("resend_otp_in") || 'Resend in'} {resendTimer}s</span>
+                          ) : (
+                            <button onClick={handleSendOtp} disabled={sendOtpMutation.isPending} className="text-xs text-primary hover:underline font-black uppercase tracking-widest">
+                              {t("resend_transmission") || 'Resend OTP'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="text-center mt-10 pt-8 border-t border-primary/5">
+                      <p className="text-xs text-muted-foreground font-bold">
+                        {t("no_active_node") || 'New explorer?'}
+                        <button onClick={switchMode} className="text-accent hover:text-accent/80 font-black ml-2 uppercase tracking-tight">
+                          {t("register_node") || 'Join Platform'}
+                        </button>
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={registerForm.handleSubmit(handleRegisterSubmit)} className="space-y-6">
+                    <div className="space-y-3">
+                      <Label className="text-muted-foreground font-black text-[10px] uppercase tracking-widest ml-1">{t("full_name") || 'Your Full Name'}</Label>
+                      <Input
+                        placeholder={t("your_identity") || 'John Doe'}
+                        {...registerForm.register("username")}
+                        className="h-14 rounded-2xl bg-white/80 border-primary/10 text-lg font-bold focus:ring-primary shadow-sm"
+                      />
+                      {registerForm.formState.errors.username && <p className="text-xs text-destructive font-bold ml-1">{registerForm.formState.errors.username.message}</p>}
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label className="text-muted-foreground font-black text-[10px] uppercase tracking-widest ml-1">{t("phone_number") || 'Phone Number'}</Label>
+                      <div className="flex gap-3">
+                        <div className="w-20 rounded-2xl bg-white/60 border border-primary/10 flex items-center justify-center font-bold text-primary shadow-sm h-14">+91</div>
+                        <Input
+                          placeholder='9876543210'
+                          className="h-14 rounded-2xl bg-white/80 border-primary/10 text-lg font-bold focus:ring-primary shadow-sm"
+                          type="tel"
+                          {...registerForm.register("phone")}
+                        />
+                      </div>
+                      {registerForm.formState.errors.phone && <p className="text-xs text-destructive font-bold ml-1">{registerForm.formState.errors.phone.message}</p>}
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label className="text-muted-foreground font-black text-[10px] uppercase tracking-widest ml-1">{t("otp_code") || 'OTP Verification'}</Label>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={OTP_LENGTH}
+                        placeholder="••••••"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH))}
+                        disabled={verifyOtpMutation.isPending}
+                        className="h-16 text-3xl tracking-[0.4em] text-center font-black rounded-2xl bg-white/80 border-primary/10 text-primary placeholder:text-muted-foreground/20 focus:ring-primary shadow-sm"
+                      />
+                      
+                      {!otpRequested && (
+                        <Button 
+                          className="w-full btn-organic py-8 text-lg rounded-2xl shadow-xl shadow-primary/20 mt-4" 
+                          onClick={() => {
+                            const phone = registerForm.getValues("phone");
+                            if (!phone) return;
+                            sendOtpMutation.mutate({ phone, isLogin: false });
+                          }} 
+                          disabled={sendOtpMutation.isPending}
+                        >
+                          {sendOtpMutation.isPending ? (t("sending_btn") || 'Sending...') : (t("transmit_otp") || 'Send OTP')}
+                        </Button>
+                      )}
+                    </div>
+
+                    <Button 
+                      type="submit" 
+                      className="w-full btn-organic py-8 text-lg rounded-2xl shadow-xl shadow-primary/20 mt-4" 
+                      disabled={verifyOtpMutation.isPending || otpCode.length !== OTP_LENGTH}
+                    >
+                      {verifyOtpMutation.isPending ? (t("deploying_btn") || 'Joining...') : (t("finalize_protocol") || 'Complete Register')}
+                    </Button>
+
+                    <div className="text-center mt-10 pt-8 border-t border-primary/5">
+                      <p className="text-xs text-muted-foreground font-bold">
+                        {t("node_already_exists") || 'Already a member?'}
+                        <button onClick={switchMode} className="text-accent hover:text-accent/80 font-black ml-2 uppercase tracking-tight">
+                          {t("access_node") || 'Login'}
+                        </button>
+                      </p>
+                    </div>
+                  </form>
                 )}
               </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <div className="flex space-x-2">
-                <Select defaultValue="+91">
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="+91">+91</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  id="phone"
-                  placeholder="Enter phone number"
-                  className="flex-1"
-                  {...form.register("phone")}
-                  data-testid="input-phone"
-                />
-              </div>
-              {form.formState.errors.phone && (
-                <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>
-              )}
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">{isLogin ? "Password" : "Create Password"}</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder={isLogin ? "Enter your password" : "Create a strong password"}
-                {...form.register("password")}
-                data-testid="input-password"
-              />
-              {form.formState.errors.password && (
-                <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
-              )}
-            </div>
-
-            {!isLogin && (
-              <div className="flex items-start space-x-3 bg-muted p-4 rounded-lg">
-                <Checkbox
-                  id="terms"
-                  {...form.register("termsAccepted")}
-                  data-testid="checkbox-terms"
-                />
-                <Label htmlFor="terms" className="text-sm text-muted-foreground leading-relaxed">
-                  I agree to the <Button variant="link" className="p-0 h-auto text-primary">Terms of Service</Button> and <Button variant="link" className="p-0 h-auto text-primary">Privacy Policy</Button>
-                </Label>
-              </div>
-            )}
-
-            {!isLogin && form.formState.errors.termsAccepted && (
-              <p className="text-sm text-destructive">{form.formState.errors.termsAccepted.message}</p>
-            )}
-
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={registerMutation.isPending}
-              data-testid="button-submit"
-            >
-              {registerMutation.isPending 
-                ? (isLogin ? "Signing In..." : "Creating Account...") 
-                : (isLogin ? "Sign In" : "Register & Send OTP")
-              }
-            </Button>
-
-            <div className="text-center mt-4">
-              <p className="text-sm text-muted-foreground">
-                {isLogin ? "Don't have an account? " : "Already have an account? "}
-                <Button 
-                  variant="link" 
-                  className="p-0 h-auto text-primary"
-                  onClick={() => setIsLogin(!isLogin)}
-                  data-testid="toggle-auth-mode"
-                >
-                  {isLogin ? "Register" : "Sign In"}
-                </Button>
-              </p>
-            </div>
-          </form>
-        </div>
+          </div>
+        </main>
       </div>
     </div>
   );
 }
+

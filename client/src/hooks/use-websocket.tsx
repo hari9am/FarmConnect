@@ -31,8 +31,19 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
     try {
       // Determine WebSocket URL
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = url.startsWith("ws") ? url : `${protocol}//${window.location.host}${url}`;
+      const hostname = window.location.hostname || "localhost";
+      const port = window.location.port || "3000";
+      const host = `${hostname}:${port}`;
       
+      // Always construct URL properly, handling cases where url might already include protocol
+      let wsUrl: string;
+      if (url.startsWith("ws://") || url.startsWith("wss://")) {
+        wsUrl = url;
+      } else {
+        wsUrl = `${protocol}//${host}${url}`;
+      }
+      
+      console.log("WebSocket connecting to:", wsUrl);
       ws.current = new WebSocket(wsUrl);
 
       ws.current.onopen = (event) => {

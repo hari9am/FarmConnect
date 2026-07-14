@@ -1,15 +1,37 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
-import * as schema from "@shared/schema";
+import 'dotenv/config';
+import { connectToMongoDB } from './mongodb';
+import { MongoDBStorage } from './mongodb-storage';
+import { MockStorage } from './mock-storage';
+// Import all models to ensure they're registered with Mongoose
+import { 
+  User, Farmer, Customer, Crop, Message, Order, Review, UpcomingCrop, DeliveryRequest, MarketPrice 
+} from '@shared/mongodb-schema';
 
-neonConfig.webSocketConstructor = ws;
+// Initialize MongoDB connection and storage
+let db: any = null;
+let storage: any = null;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+async function initializeDatabase() {
+  console.log("DATABASE_URL:", process.env.DATABASE_URL?.replace(/\/\/.*:.*@/, "//***:***@"));
+
+  try {
+    db = await connectToMongoDB();
+    if (!db) {
+      console.warn("⚠️ MongoDB connection failed, using mock storage");
+      storage = new MockStorage();
+      return;
+    }
+
+    storage = new MongoDBStorage();
+    console.log("✅ MongoDB connection and storage initialized successfully");
+  } catch (error) {
+    console.error("❌ Failed to connect to MongoDB:", error);
+    console.warn("⚠️ Using mock storage for testing");
+    storage = new MockStorage();
+  }
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+// Initialize database connection
+initializeDatabase();
+
+export { db, storage };

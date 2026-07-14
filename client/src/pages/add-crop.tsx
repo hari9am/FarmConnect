@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import CameraCapture from "@/components/camera-capture";
 import LocationPicker from "@/components/location-picker";
+import { useLanguage } from "@/hooks/use-language";
 
 const cropSchema = z.object({
   name: z.string().min(1, "Please select a crop type"),
@@ -28,24 +29,28 @@ const cropSchema = z.object({
 
 type CropFormData = z.infer<typeof cropSchema>;
 
-const cropOptions = [
-  { value: "tomatoes", label: "Tomatoes" },
-  { value: "onions", label: "Onions" },
-  { value: "potatoes", label: "Potatoes" },
-  { value: "carrots", label: "Carrots" },
-  { value: "spinach", label: "Spinach" },
-  { value: "wheat", label: "Wheat" },
-  { value: "rice", label: "Rice" },
-];
+// Category -> product catalog used for crop selection
+const productCatalog: Record<string, string[]> = {
+  fruits: ["apples", "bananas", "mangoes"],
+  vegetables: ["tomatoes", "onions", "potatoes", "carrots", "spinach"],
+  grains: ["wheat", "rice"],
+  flowers: ["rose", "lotus", "sunflower", "daisy", "tulip"],
+  eggs:["eggs"],
+};
 
 export default function AddCrop() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(1);
   const [images, setImages] = useState<string[]>([]);
-  const [location, setLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
+  const [location, setLocation] = useState<{ lat: number; lng: number; address: string; radius?: number } | null>(null);
+  const [category, setCategory] = useState<string>("");
+  const [useOtherCategory, setUseOtherCategory] = useState<boolean>(false);
+  const [otherCategoryName, setOtherCategoryName] = useState<string>("");
+  const [useOtherName, setUseOtherName] = useState<boolean>(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { getCurrentPosition } = useGeolocation();
+  const { t } = useLanguage();
 
   const form = useForm<CropFormData>({
     resolver: zodResolver(cropSchema),
@@ -53,6 +58,7 @@ export default function AddCrop() {
       unit: "kg",
     },
   });
+  const selectedName = form.watch("name");
 
   const createCropMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -62,15 +68,15 @@ export default function AddCrop() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/farmer/crops"] });
       toast({
-        title: "Crop Added Successfully!",
-        description: "Your crop has been published and is now visible to customers.",
+        title: t("crop_added_title"),
+        description: t("crop_added_desc"),
       });
       navigate("/farmer/dashboard");
     },
     onError: (error: any) => {
       toast({
-        title: "Error Adding Crop",
-        description: error.message || "Something went wrong. Please try again.",
+        title: t("error_adding_crop_title"),
+        description: error.message || t("generic_error"),
         variant: "destructive",
       });
     },
@@ -88,28 +94,41 @@ export default function AddCrop() {
         lat: latitude,
         lng: longitude,
         address,
+        radius: 5, // Default 5km radius
       });
 
       toast({
-        title: "Location Updated",
-        description: "Your current location has been set for this crop.",
+        title: t("location_updated_title"),
+        description: t("location_updated_desc"),
       });
     } catch (error) {
       toast({
-        title: "Location Error",
-        description: "Unable to get your current location. Please check your permissions.",
+        title: t("location_error_title"),
+        description: t("location_error_desc"),
         variant: "destructive",
       });
     }
   };
 
   const handleSubmit = (data: CropFormData) => {
+    // Require category if using Other
+    if (useOtherName && !category) {
+      toast({ title: t("category"), description: t("select_category"), variant: "destructive" });
+      return;
+    }
+    if (!data.name || data.name.trim().length === 0) {
+      toast({ title: t("crop_name"), description: t("enter_product_name"), variant: "destructive" });
+      return;
+    }
     const cropData = {
       ...data,
+      // Ensure numeric types are sent as numbers, but server will coerce decimal/date formats
+      quantity: Number(data.quantity),
+      pricePerUnit: Number(data.pricePerUnit),
       images,
       location,
       expiryDate: new Date(data.expiryDate).toISOString(),
-    };
+    } as any;
 
     createCropMutation.mutate(cropData);
   };
@@ -119,15 +138,15 @@ export default function AddCrop() {
   };
 
   const progressSteps = [
-    { step: 1, title: "Details", active: step >= 1 },
-    { step: 2, title: "Photo", active: step >= 2 },
-    { step: 3, title: "Location", active: step >= 3 },
+    { step: 1, title: t("step_details"), active: step >= 1 },
+    { step: 2, title: t("step_photo"), active: step >= 2 },
+    { step: 3, title: t("step_location"), active: step >= 3 },
   ];
 
   return (
     <div className="mobile-container">
       <div className="flex flex-col min-h-screen">
-        <header className="p-4 border-b border-border">
+        <header className="p-4 border-b border-border bg-card sticky top-0 z-40">
           <div className="flex items-center space-x-3">
             <Button
               variant="ghost"
@@ -137,7 +156,7 @@ export default function AddCrop() {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-lg font-semibold" data-testid="page-title">Add New Crop</h1>
+            <h1 className="text-lg font-semibold" data-testid="page-title">{t("add_new_crop")}</h1>
           </div>
         </header>
 
@@ -170,20 +189,92 @@ export default function AddCrop() {
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             {/* Crop Details */}
             <div className="space-y-4">
+              {/* Category */}
               <div className="space-y-2">
-                <Label htmlFor="name">Crop Name</Label>
-                <Select onValueChange={(value) => form.setValue("name", value)} data-testid="select-crop-name">
+                <Label htmlFor="category">{t("category")}</Label>
+                <Select 
+                  value={category}
+                  onValueChange={(value) => {
+                    setCategory(value);
+                    setUseOtherCategory(value === "__other_cat__");
+                    // Reset previously selected product name when category changes
+                    form.setValue("name", "");
+                    // Adjust unit defaults depending on category
+                    if (value === "eggs") {
+                      form.setValue("unit", "number");
+                    } else {
+                      form.setValue("unit", "kg");
+                    }
+                    // If category is other, default product selection to Other as well
+                    if (value === "__other_cat__") {
+                      setUseOtherName(true);
+                    } else {
+                      setUseOtherName(false);
+                    }
+                  }} 
+                  data-testid="select-category"
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select crop type" />
+                    <SelectValue placeholder={t("select_category")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {cropOptions.map((crop) => (
-                      <SelectItem key={crop.value} value={crop.value}>
-                        {crop.label}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="fruits">{t("fruits")}</SelectItem>
+                    <SelectItem value="vegetables">{t("vegetables")}</SelectItem>
+                    <SelectItem value="grains">{t("grains")}</SelectItem>
+                    <SelectItem value="flowers">{t("flowers") || "Flowers"}</SelectItem>
+                    <SelectItem value="eggs">{t("eggs") || "Eggs"}</SelectItem>
+                    <SelectItem value="__other_cat__">{t("other")}</SelectItem>
                   </SelectContent>
                 </Select>
+                {useOtherCategory && (
+                  <Input
+                    id="otherCategory"
+                    placeholder={t("enter_category_name")}
+                    value={otherCategoryName}
+                    onChange={(e) => setOtherCategoryName(e.target.value)}
+                    data-testid="input-other-category"
+                  />
+                )}
+              </div>
+
+              {/* Product under selected category */}
+              <div className="space-y-2">
+                <Label htmlFor="name">{t("crop_name")}</Label>
+                <Select 
+                  onValueChange={(value) => {
+                    if (value === "__other__") {
+                      setUseOtherName(true);
+                      form.setValue("name", "");
+                    } else {
+                      setUseOtherName(false);
+                      form.setValue("name", value);
+                    }
+                  }} 
+                  value={useOtherName ? "__other__" : (selectedName as any)}
+                  disabled={!category}
+                  data-testid="select-product-name"
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("select_product")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(productCatalog[category] || []).map((prod) => (
+                      <SelectItem key={prod} value={prod}>
+                        {t(`crop_${prod}`) || prod.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase())}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__other__">{t("other")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {useOtherName && (
+                  <Input
+                    id="otherName"
+                    placeholder={t("enter_product_name")}
+                    value={(form.watch("name") as any) || ""}
+                    onChange={(e) => form.setValue("name", e.target.value)}
+                    data-testid="input-other-product"
+                  />
+                )}
                 {form.formState.errors.name && (
                   <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
                 )}
@@ -191,7 +282,7 @@ export default function AddCrop() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="quantity">Quantity</Label>
+                  <Label htmlFor="quantity">{t("quantity")}</Label>
                   <Input
                     id="quantity"
                     type="number"
@@ -204,22 +295,28 @@ export default function AddCrop() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="unit">Unit</Label>
-                  <Select onValueChange={(value) => form.setValue("unit", value)} defaultValue="kg" data-testid="select-unit">
+                  <Label htmlFor="unit">{t("unit")}</Label>
+                  <Select onValueChange={(value) => form.setValue("unit", value)} value={form.watch("unit")} data-testid="select-unit">
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="kg">Kilograms</SelectItem>
-                      <SelectItem value="quintal">Quintal</SelectItem>
-                      <SelectItem value="ton">Ton</SelectItem>
+                      {category === "eggs" ? (
+                        <SelectItem value="number">{t("number") || "Number"}</SelectItem>
+                      ) : (
+                        <>
+                          <SelectItem value="kg">{t("kilograms")}</SelectItem>
+                          <SelectItem value="quintal">{t("quintal")}</SelectItem>
+                          <SelectItem value="ton">{t("ton")}</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="pricePerUnit">Price per Unit</Label>
+                <Label htmlFor="pricePerUnit">{t("price_per_unit")}</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-3 text-muted-foreground">₹</span>
                   <Input
@@ -238,7 +335,7 @@ export default function AddCrop() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="expiryDate">Expiry Date</Label>
+                <Label htmlFor="expiryDate">{t("expiry_date")}</Label>
                 <Input
                   id="expiryDate"
                   type="date"
@@ -252,10 +349,10 @@ export default function AddCrop() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description (Optional)</Label>
+                <Label htmlFor="description">{t("description_optional")}</Label>
                 <Textarea
                   id="description"
-                  placeholder="Tell customers about your crop quality, farming methods..."
+                  placeholder={t("description_placeholder")}
                   className="h-24 resize-none"
                   {...form.register("description")}
                   data-testid="textarea-description"
@@ -266,7 +363,7 @@ export default function AddCrop() {
             {/* Photo Upload Section */}
             <Card data-testid="photo-upload-section">
               <CardContent className="p-6">
-                <h3 className="font-medium mb-4">Add Photos</h3>
+                <h3 className="font-medium mb-4">{t("add_photos")}</h3>
                 {images.length > 0 ? (
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     {images.map((image, index) => (
@@ -282,7 +379,7 @@ export default function AddCrop() {
                 ) : (
                   <div className="border-2 border-dashed border-border rounded-lg p-8 text-center mb-4">
                     <Camera className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground mb-4" data-testid="photo-prompt">Take photos of your crop</p>
+                    <p className="text-muted-foreground mb-4" data-testid="photo-prompt">{t("photo_prompt")}</p>
                   </div>
                 )}
                 <CameraCapture onCapture={handleImageCapture} data-testid="camera-capture" />
@@ -293,7 +390,7 @@ export default function AddCrop() {
             <Card data-testid="location-section">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-medium">Farm Location</h3>
+                  <h3 className="font-medium">{t("farm_location")}</h3>
                   <Button
                     type="button"
                     variant="link"
@@ -303,12 +400,12 @@ export default function AddCrop() {
                     data-testid="use-current-location"
                   >
                     <MapPin className="h-4 w-4 mr-1" />
-                    Use Current Location
+                    {t("use_current_location")}
                   </Button>
                 </div>
                 {location ? (
                   <div className="bg-muted p-3 rounded-lg">
-                    <p className="text-sm font-medium">Location Set</p>
+                    <p className="text-sm font-medium">{t("location_set")}</p>
                     <p className="text-xs text-muted-foreground">{location.address}</p>
                   </div>
                 ) : (
@@ -327,7 +424,7 @@ export default function AddCrop() {
             disabled={createCropMutation.isPending}
             data-testid="publish-crop-button"
           >
-            {createCropMutation.isPending ? "Publishing..." : "Publish Crop"}
+            {createCropMutation.isPending ? t("publishing") : t("publish_crop")}
           </Button>
         </div>
       </div>
